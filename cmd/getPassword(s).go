@@ -11,9 +11,18 @@ import (
 
 	"github.com/spf13/cobra"
     tea "github.com/charmbracelet/bubbletea"
+    "github.com/charmbracelet/lipgloss"
     //"golang.org/x/term"
 
 
+)
+
+var (
+	focusedStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Bold(true)
+	titleStyle            = lipgloss.NewStyle().Background(lipgloss.Color("#01FAC6")).Foreground(lipgloss.Color("#030303")).Bold(true).Padding(0, 1, 0)
+	selectedItemStyle     = lipgloss.NewStyle().PaddingLeft(1).Foreground(lipgloss.Color("170")).Bold(true)
+	selectedItemDescStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(lipgloss.Color("170"))
+	descriptionStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("#40BDA3"))
 )
 
 var bubbleTea= &cobra.Command{
@@ -45,6 +54,7 @@ type model struct {
     cursor   int                // which to-do list item our cursor is pointing at
     selected map[int]struct{}   // which to-do items are selected
     choice   *Selection
+    header   string
 }
 
 func bubbleTeaRun(cmd *cobra.Command, arg []string) {
@@ -73,6 +83,7 @@ func bubbleTeaRun(cmd *cobra.Command, arg []string) {
 func initialModel() model {
 
     password_list := getPasswords()
+    header := "Which password(s) would you like?"
     
 	return model{
 		// Our to-do list is a grocery list
@@ -86,6 +97,7 @@ func initialModel() model {
 		// of the `choices` slice, above.
 		selected: make(map[int]struct{}),
         choice: &Selection{},
+        header: titleStyle.Render(header),
 
 	}
 }
@@ -150,7 +162,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
     // The header
-    s := "Which password(s) would you like?\n\n"
+    //s := fmt.Sprintf("Which password(s) would you like?\n\n",)
+
+    s := m.header + "\n\n"
 
     // Iterate over our choices
     for i, choice := range m.choices {
@@ -158,13 +172,19 @@ func (m model) View() string {
         // Is the cursor pointing at this choice?
         cursor := " " // no cursor
         if m.cursor == i {
-            cursor = ">" // cursor!
+            //cursor = ">" // cursor!
+            cursor = focusedStyle.Render(">")
+            choice = selectedItemStyle.Render(choice)
+			//choice.Desc = selectedItemDescStyle.Render(choice.Desc)
+        } else {
+            choice = focusedStyle.Render(choice)
         }
 
         // Is this choice selected?
         checked := " " // not selected
         if _, ok := m.selected[i]; ok {
-            checked = "x" // selected!
+            //checked = "x" // selected!
+            checked = focusedStyle.Render("x")
         }
 
         // Render the row
@@ -172,8 +192,8 @@ func (m model) View() string {
     }
 
     // The footer
-    s += "\nPress q to quit.\nPress y to confirm.\n"
-    //s += fmt.Sprintf("Press y to confirm choice.\n\n")
+    //s += "\nPress q to quit.\nPress y to confirm.\n"
+    s += fmt.Sprintf("\nPress %s to confirm.\n\n", focusedStyle.Render("y"))
 
     // Send the UI for rendering
     return s
@@ -183,7 +203,6 @@ func (m model) View() string {
 func getPasswords() []string {
 
     var password_list []string 
-
 
     files, err := os.ReadDir("./passwords")
     if err != nil {
