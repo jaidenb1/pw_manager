@@ -47,10 +47,12 @@ func (s *Selection) Update(value string) {
 
 type model struct {
 	choices  []string         // items on the to-do list
-	cursor   int              // which to-do list item our cursor is pointing at
-	selected map[int]struct{} // which to-do items are selected
-	choice   *Selection
-	header   string
+	cursor          int              // which to-do list item our cursor is pointing at
+	selected        map[int]struct{} // which to-do items are selected
+	choice          *Selection
+	header          string
+    filteredChoices []string
+    searchQuery     string
 }
 
 func bubbleTeaRun(cmd *cobra.Command, arg []string) {
@@ -63,7 +65,7 @@ func bubbleTeaRun(cmd *cobra.Command, arg []string) {
 	} else {
 		if model, ok := m.(model); ok {
 			// Print selected choices after the program exits
-			fmt.Println("\nSelected passwords:\n ")
+			fmt.Println("Selected password(s):\n ")
 			for _, choice := range model.choice.Choices {
 
 				fmt.Println(choice + ":")
@@ -76,7 +78,7 @@ func bubbleTeaRun(cmd *cobra.Command, arg []string) {
 
 func initialModel() model {
 	password_list := getPasswords()
-	header := "Which password(s) would you like?"
+    header := "Select a password:"
 
 	return model{
 		// Our to-do list is a grocery list
@@ -90,6 +92,8 @@ func initialModel() model {
 		selected: make(map[int]struct{}),
 		choice:   &Selection{},
 		header:   purpleStyle.Render(header),
+        filteredChoices: password_list, 
+        searchQuery: "",
 	}
 }
 
@@ -115,19 +119,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 
 		// The "up" and "k" keys move the cursor up
-		case "up", "k":
+		case "up":
 			if m.cursor > 0 {
 				m.cursor--
 			}
 
-		// The "down" and "j" keys move the cursor down
-		case "down", "j":
-			if m.cursor < len(m.choices)-1 {
+		case "backspace": // make backspace work correctly when searching
+            if len(m.searchQuery) > 0 {
+                m.searchQuery = m.searchQuery[:len(m.searchQuery)-1]
+                m.filteredChoices = filterChoices(m.choices, m.searchQuery)
+            }
+
+		case "down":
+			if m.cursor < len(m.filteredChoices)-1 {
 				m.cursor++
 			}
 
-		// The "enter" key and the spacebar (a literal space) toggle
-		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
 			_, ok := m.selected[m.cursor]
 			if ok {
@@ -135,17 +142,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.selected[m.cursor] = struct{}{}
 				// m.choice.Update(m.choices[m.cursor])
-
 			}
 
-		case "y":
+		case "1":
 			for selectedKey := range m.selected {
 				// m.choice.Update(m.choices[selectedKey])
 				m.cursor = selectedKey
-				m.choice.Update(m.choices[m.cursor])
+				m.choice.Update(m.filteredChoices[m.cursor])
 			}
 			return m, tea.Quit
-		}
+
+        default:
+            m.cursor = 0 // set cursor to top when searching
+            m.searchQuery += msg.String()
+            m.filteredChoices = filterChoices(m.choices, m.searchQuery)
+            //m.cursor = 0
+        }
 	}
 
 	// Return the updated model to the Bubble Tea runtime for processing.
@@ -154,13 +166,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	// The header
-	// s := fmt.Sprintf("Which password(s) would you like?\n\n",)
 
 	s := m.header + "\n\n"
+    //s += fmt.Sprintf("Search: %s\n\n", m.searchQuery)
+    s += fmt.Sprintf("Search: %s\n\n", purpleStyle.Render(m.searchQuery))
+    //s += focusedStyle.Render("Search: " + m.searchQuery + "\n")
+    //s = ("Search: " + m.searchQuery + "\n\n")
 
 	// Iterate over our choices
-	for i, choice := range m.choices {
+	for i, choice := range m.filteredChoices{
 
 		// Is the cursor pointing at this choice?
 		cursor := " " // no cursor
@@ -186,10 +200,21 @@ func (m model) View() string {
 
 	// The footer
 	// s += "\nPress q to quit.\nPress y to confirm.\n"
-	s += fmt.Sprintf("\nPress %s to confirm.\n\n", focusedStyle.Render("y"))
+	s += fmt.Sprintf("\nPress %s to confirm.\n\n", focusedStyle.Render("1"))
 
 	// Send the UI for rendering
 	return s
+}
+
+// function for filtering on search input (query)
+func filterChoices(choices []string, query string) []string {
+    var filtered []string
+    for _, choice := range choices {
+        if strings.Contains(strings.ToLower(choice), strings.ToLower(query)) {
+            filtered = append(filtered, choice)
+        }
+    }
+    return filtered
 }
 
 func getPasswords() []string {
