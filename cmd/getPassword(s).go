@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	focusedStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Bold(true)
+    focusedStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#01FAC6")).Bold(true)
 	titleStyle            = lipgloss.NewStyle().Background(lipgloss.Color("#01FAC6")).Foreground(lipgloss.Color("#030303")).Bold(true).Padding(0, 1, 0)
 	selectedItemStyle     = lipgloss.NewStyle().PaddingLeft(1).Foreground(lipgloss.Color("170")).Bold(true)
 	selectedItemDescStyle = lipgloss.NewStyle().PaddingLeft(1).Foreground(lipgloss.Color("170"))
@@ -97,7 +97,7 @@ func initialModel() model {
 		// of the `choices` slice, above.
 		selected: make(map[int]struct{}),
         choice: &Selection{},
-        header: titleStyle.Render(header),
+        header: purpleStyle.Render(header),
 
 	}
 }
@@ -109,6 +109,10 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
     switch msg := msg.(type) {
+
+    // possbile feature - allow use of mouse to select passwords (doesnt work rn)
+	//case tea.MouseMsg:
+		//return m, tea.Printf("(X: %d, Y: %d) %s", msg.X, msg.Y, tea.MouseEvent(msg))
 
     // Is it a key press?
     case tea.KeyMsg:
@@ -143,6 +147,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
                 //m.choice.Update(m.choices[m.cursor])
 
             }
+ 
 
         case "y":
             for selectedKey := range m.selected {
