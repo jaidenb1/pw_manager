@@ -1,39 +1,36 @@
 package cmd
 
 import (
-    "fmt"
-    "os"
-    "strings"
-	"github.com/spf13/cobra"
-    "crypto/aes"
+	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
-    //"reflect"
+	"fmt"
+	"os"
+	"strings"
 
-    "github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-
+	"github.com/spf13/cobra"
 )
 
-var passwordAdd= &cobra.Command{
+var passwordAdd = &cobra.Command{
 	Use:   "add",
 	Short: "Add a new password",
-    //Long: "long",
+	// Long: "long",
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-     Run: addPassword,
+	Run: addPassword,
 }
 
 func init() {
-    
-    //rootCmd.
-    rootCmd.AddCommand(passwordAdd)
+	// rootCmd.
+	rootCmd.AddCommand(passwordAdd)
 }
 
 var (
-    purpleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	purpleStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	cursorStyle         = purpleStyle.Copy()
 	noStyle             = lipgloss.NewStyle()
@@ -43,10 +40,9 @@ var (
 	focusedButton = focusedStyle.Copy().Render("[ Submit ]")
 	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
 
-    borderStyle = lipgloss.NewStyle().
-        BorderStyle(lipgloss.RoundedBorder()).
-        BorderForeground(lipgloss.Color("205")).Foreground(lipgloss.Color("205"))
-
+	borderStyle = lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("205")).Foreground(lipgloss.Color("205"))
 )
 
 type add_model struct {
@@ -55,41 +51,37 @@ type add_model struct {
 	cursorMode cursor.Mode
 }
 
-
 func addPassword(cmd *cobra.Command, arg []string) {
+	login()
+	p := tea.NewProgram(initialModelAdd())
+	if m, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
+	} else {
+		// fmt.Println(m)
+		if model, ok := m.(add_model); ok {
 
-    login()    
-    p := tea.NewProgram(initialModelAdd())
-    if m, err := p.Run(); err != nil {
-        fmt.Printf("Alas, there's been an error: %v", err)
-        os.Exit(1)
-    } else {
-        //fmt.Println(m)
-        if model, ok := m.(add_model); ok {
+			// fmt.Println(reflect.TypeOf(model.inputs))
+			input_map := GetInputValues(model.inputs)
 
-            //fmt.Println(reflect.TypeOf(model.inputs))
-            input_map := GetInputValues(model.inputs)
+			// check if any entries contain only white space
+			for key, value := range input_map {
+				if len(strings.TrimSpace(value)) == 0 {
+					fmt.Println(borderStyle.Render("Error: invalid " + key))
+					os.Exit(1)
 
-            // check if any entries contain only white space
-            for key, value := range input_map {
-                if len(strings.TrimSpace(value)) == 0 {
-                    fmt.Println(borderStyle.Render("Error: invalid " + key))
-                    os.Exit(1)
-                    
-                }
-            }
+				}
+			}
 
-            if input_map["Password"] != input_map["Confirm Password"] {
-                fmt.Println(borderStyle.Render("Error: passwords do not match"))
-                
-            } else {
-                writePassword(input_map["Title"], input_map["Username/Email"], input_map["Password"]   )
-            }
-        }     
-    }
+			if input_map["Password"] != input_map["Confirm Password"] {
+				fmt.Println(borderStyle.Render("Error: passwords do not match"))
+			} else {
+				writePassword(input_map["Title"], input_map["Username/Email"], input_map["Password"])
+				fmt.Println(purpleStyle.Render("Password successfully added"))
+			}
+		}
+	}
 }
-
-
 
 func initialModelAdd() add_model {
 	m := add_model{
@@ -115,7 +107,6 @@ func initialModelAdd() add_model {
 			t.Placeholder = "Password"
 			t.EchoMode = textinput.EchoPassword
 			t.EchoCharacter = '•'
-
 
 		case 3:
 			t.Placeholder = "Confirm Password"
@@ -180,8 +171,8 @@ func (m add_model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if i == m.focusIndex {
 					// Set focused state
 					cmds[i] = m.inputs[i].Focus()
-					m.inputs[i].PromptStyle = purpleStyle 
-					m.inputs[i].TextStyle = purpleStyle 
+					m.inputs[i].PromptStyle = purpleStyle
+					m.inputs[i].TextStyle = purpleStyle
 					continue
 				}
 				// Remove focused state
@@ -235,67 +226,62 @@ func (m add_model) View() string {
 	return b.String()
 }
 
-func  GetInputValues(m []textinput.Model) map[string]string {
-    //var inputMap map[string]string
+func GetInputValues(m []textinput.Model) map[string]string {
+	// var inputMap map[string]string
 
-    inputMap := make(map[string]string)
+	inputMap := make(map[string]string)
 
-    for _, input := range m {
-        inputMap[input.Placeholder] = input.Value()
+	for _, input := range m {
+		inputMap[input.Placeholder] = input.Value()
 
-        //fmt.Printf(input.Value())
-        //fmt.Printf("%s: %s\n", input.Placeholder, input.Value())
+		// fmt.Printf(input.Value())
+		// fmt.Printf("%s: %s\n", input.Placeholder, input.Value())
 
-    }
-    //fmt.Printf("%s: %s\n", input.Placeholder, input.Value())
+	}
+	// fmt.Printf("%s: %s\n", input.Placeholder, input.Value())
 
-    return inputMap 
+	return inputMap
 }
-
-
 
 func writePassword(title string, username string, password string) {
+	encPass, err := Encrypt(password, MySecret)
+	if err != nil {
+		fmt.Println("error encrypting your classified text: ", err)
+	}
 
-    encPass, err := Encrypt(password, MySecret)
-    if err != nil {
-        fmt.Println("error encrypting your classified text: ", err)
-    }
+	f, err := os.Create("passwords/" + title + ".txt")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    f, err := os.Create("passwords/" + title + ".txt")
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-    l, err := f.WriteString(username + "\n" + string(encPass))
-    if err != nil {
-        fmt.Println(l, err)
-        f.Close()
-        return
-    }
-
+	l, err := f.WriteString(username + "\n" + string(encPass))
+	if err != nil {
+		fmt.Println(l, err)
+		f.Close()
+		return
+	}
 }
 
-
 var bytes = []byte{35, 46, 57, 24, 85, 35, 24, 74, 87, 35, 88, 98, 66, 32, 14, 05}
+
 // This should be in an env file in production
 const MySecret string = "a*~c&#s=)^^1b2%^^#70^b34"
+
 func Encode(b []byte) string {
-    return base64.StdEncoding.EncodeToString(b)
+	return base64.StdEncoding.EncodeToString(b)
 }
 
 // Encrypt method is to encrypt or hide any classified text
 func Encrypt(text, MySecret string) (string, error) {
-    block, err := aes.NewCipher([]byte(MySecret))
-    if err != nil {
-        return "", err
-    }
-    plainText := []byte(text)
-    cfb := cipher.NewCFBEncrypter(block, bytes)
-    cipherText := make([]byte, len(plainText))
-    cfb.XORKeyStream(cipherText, plainText)
+	block, err := aes.NewCipher([]byte(MySecret))
+	if err != nil {
+		return "", err
+	}
+	plainText := []byte(text)
+	cfb := cipher.NewCFBEncrypter(block, bytes)
+	cipherText := make([]byte, len(plainText))
+	cfb.XORKeyStream(cipherText, plainText)
 
-    return Encode(cipherText), nil
+	return Encode(cipherText), nil
 }
-
-

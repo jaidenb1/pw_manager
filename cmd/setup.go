@@ -46,38 +46,35 @@ func setMaster(cmd *cobra.Command, arg []string) {
 			}
 			// reset password
 			if verifyMaster(string(master_in)) {
-                startBubbleTeaSetup()
-
+				startBubbleTeaSetup()
 			} else {
 				fmt.Println("Incorrect password. Try again.")
 			}
 		}
 	} else {
-        startBubbleTeaSetup()
+		startBubbleTeaSetup()
 	}
 }
 
 func startBubbleTeaSetup() {
+	p := tea.NewProgram(initialModelSetup())
+	if m, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
+	} else {
+		if model, ok := m.(setup_model); ok {
 
-    p := tea.NewProgram(initialModelSetup())
-    if m, err := p.Run(); err != nil {
-        fmt.Printf("Alas, there's been an error: %v", err)
-        os.Exit(1)
-    } else {
-        if model, ok := m.(setup_model); ok {
+			input_map := GetInputValues(model.inputs)
 
-            input_map := GetInputValues(model.inputs)
-
-            if input_map["Master Password"] != input_map["Confirm Password"] {
-                fmt.Println(borderStyle.Render("Error: passwords do not match"))
-            } else {
-                writeMaster(input_map["Master Password"])
-                os.Exit(1)
-            }
-        }
-    }
+			if input_map["Master Password"] != input_map["Confirm Password"] {
+				fmt.Println(borderStyle.Render("Error: passwords do not match"))
+			} else {
+				writeMaster(input_map["Master Password"])
+				os.Exit(1)
+			}
+		}
+	}
 }
-
 
 type setup_model struct {
 	focusIndex int
@@ -102,12 +99,12 @@ func initialModelSetup() setup_model {
 			t.Focus()
 			t.PromptStyle = purpleStyle
 			t.TextStyle = purpleStyle
-            t.EchoMode = textinput.EchoPassword
+			t.EchoMode = textinput.EchoPassword
 			t.EchoCharacter = '•'
 		case 1:
 			t.Placeholder = "Confirm Password"
 			t.CharLimit = 64
-            t.EchoMode = textinput.EchoPassword
+			t.EchoMode = textinput.EchoPassword
 			t.EchoCharacter = '•'
 		}
 
